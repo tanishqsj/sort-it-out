@@ -2,6 +2,7 @@ import pygame
 import random
 import numpy as np
 import sys
+import math
 
 # --- CONFIGURATION ---
 SCREEN_WIDTH = 1200
@@ -15,7 +16,7 @@ C_UI_BG = (30, 30, 40)
 C_BAR_DEFAULT = (0, 180, 255)
 C_BAR_ACTIVE = (255, 0, 80)
 C_BAR_SWAP = (50, 255, 50)
-C_BAR_DONE = (0, 255, 0) # Bright Green for the sweep
+C_BAR_DONE = (0, 255, 0)  # Bright Green for the sweep
 C_TEXT = (200, 200, 200)
 C_ACCENT = (255, 200, 0)
 C_UI_BORDER = (80, 80, 100)
@@ -38,6 +39,7 @@ class SoundEngine:
         max_freq = 880.0
         n_samples = int(SAMPLE_RATE * DURATION)
         t = np.linspace(0, DURATION, n_samples, False)
+        # Decay envelope for "plucked" sound
         envelope = np.linspace(1.0, 0.0, n_samples)
         
         for i in range(1, n + 1):
@@ -136,7 +138,8 @@ class InputBox:
         txt_surface = font.render(self.text, True, C_TEXT)
         screen.blit(txt_surface, (self.rect.x + 5, self.rect.y + 5))
 
-# --- SORTING ALGOS ---
+# --- SORTING ALGORITHMS ---
+
 def bubble_sort(arr):
     n = len(arr)
     for i in range(n):
@@ -145,18 +148,6 @@ def bubble_sort(arr):
             if arr[j] > arr[j+1]:
                 arr[j], arr[j+1] = arr[j+1], arr[j]
                 yield arr, [j, j+1], 1
-
-def insertion_sort(arr):
-    for i in range(1, len(arr)):
-        key = arr[i]
-        j = i - 1
-        while j >= 0 and key < arr[j]:
-            yield arr, [j, j+1], 0
-            arr[j + 1] = arr[j]
-            yield arr, [j, j+1], 1
-            j -= 1
-        arr[j + 1] = key
-        yield arr, [j+1], 1
 
 def selection_sort(arr):
     n = len(arr)
@@ -169,55 +160,17 @@ def selection_sort(arr):
         arr[i], arr[min_idx] = arr[min_idx], arr[i]
         yield arr, [i, min_idx], 1
 
-def quick_sort(arr):
-    size = len(arr)
-    stack = [0] * size
-    top = -1
-    top += 1; stack[top] = 0
-    top += 1; stack[top] = size - 1
-    while top >= 0:
-        h = stack[top]; top -= 1
-        l = stack[top]; top -= 1
-        i = (l - 1)
-        x = arr[h]
-        for j in range(l, h):
-            yield arr, [j, h], 0
-            if arr[j] <= x:
-                i += 1
-                arr[i], arr[j] = arr[j], arr[i]
-                yield arr, [i, j], 1
-        arr[i + 1], arr[h] = arr[h], arr[i + 1]
-        yield arr, [i+1, h], 1
-        p = i + 1
-        if p - 1 > l:
-            top += 1; stack[top] = l
-            top += 1; stack[top] = p - 1
-        if p + 1 < h:
-            top += 1; stack[top] = p + 1
-            top += 1; stack[top] = h
-
-def heap_sort(arr):
-    n = len(arr)
-    def heapify(arr, n, i):
-        largest = i
-        l = 2 * i + 1
-        r = 2 * i + 2
-        if l < n:
-            yield arr, [i, l], 0
-            if arr[l] > arr[largest]: largest = l
-        if r < n:
-            yield arr, [largest, r], 0
-            if arr[r] > arr[largest]: largest = r
-        if largest != i:
-            arr[i], arr[largest] = arr[largest], arr[i]
-            yield arr, [i, largest], 1
-            yield from heapify(arr, n, largest)
-    for i in range(n // 2 - 1, -1, -1):
-        yield from heapify(arr, n, i)
-    for i in range(n - 1, 0, -1):
-        arr[i], arr[0] = arr[0], arr[i]
-        yield arr, [i, 0], 1
-        yield from heapify(arr, i, 0)
+def insertion_sort(arr):
+    for i in range(1, len(arr)):
+        key = arr[i]
+        j = i - 1
+        while j >= 0 and key < arr[j]:
+            yield arr, [j, j+1], 0
+            arr[j + 1] = arr[j]
+            yield arr, [j, j+1], 1
+            j -= 1
+        arr[j + 1] = key
+        yield arr, [j+1], 1
 
 def cocktail_shaker_sort(arr):
     n = len(arr)
@@ -243,17 +196,262 @@ def cocktail_shaker_sort(arr):
                 yield arr, [i, i+1], 1
         start = start + 1
 
+def comb_sort(arr):
+    n = len(arr)
+    gap = n
+    shrink = 1.3
+    sorted = False
+    while not sorted:
+        gap = int(gap / shrink)
+        if gap <= 1:
+            gap = 1
+            sorted = True
+        for i in range(n - gap):
+            yield arr, [i, i+gap], 0
+            if arr[i] > arr[i + gap]:
+                arr[i], arr[i + gap] = arr[i + gap], arr[i]
+                sorted = False
+                yield arr, [i, i+gap], 1
+
+def shell_sort(arr):
+    n = len(arr)
+    gap = n // 2
+    while gap > 0:
+        for i in range(gap, n):
+            temp = arr[i]
+            j = i
+            while j >= gap and arr[j - gap] > temp:
+                yield arr, [j, j-gap], 0
+                arr[j] = arr[j - gap]
+                yield arr, [j, j-gap], 1
+                j -= gap
+            arr[j] = temp
+        gap //= 2
+
+def heap_sort(arr):
+    n = len(arr)
+    def heapify(arr, n, i):
+        largest = i
+        l = 2 * i + 1
+        r = 2 * i + 2
+        if l < n:
+            yield arr, [i, l], 0
+            if arr[l] > arr[largest]: largest = l
+        if r < n:
+            yield arr, [largest, r], 0
+            if arr[r] > arr[largest]: largest = r
+        if largest != i:
+            arr[i], arr[largest] = arr[largest], arr[i]
+            yield arr, [i, largest], 1
+            yield from heapify(arr, n, largest)
+
+    for i in range(n // 2 - 1, -1, -1):
+        yield from heapify(arr, n, i)
+    for i in range(n - 1, 0, -1):
+        arr[i], arr[0] = arr[0], arr[i]
+        yield arr, [i, 0], 1
+        yield from heapify(arr, i, 0)
+
+def quick_sort_iterative(arr):
+    # Iterative version to work easily as generator
+    size = len(arr)
+    stack = [0] * size
+    top = -1
+    top += 1
+    stack[top] = 0
+    top += 1
+    stack[top] = size - 1
+
+    while top >= 0:
+        h = stack[top]
+        top -= 1
+        l = stack[top]
+        top -= 1
+
+        # Partition
+        i = (l - 1)
+        x = arr[h]
+        for j in range(l, h):
+            yield arr, [j, h], 0
+            if arr[j] <= x:
+                i += 1
+                arr[i], arr[j] = arr[j], arr[i]
+                yield arr, [i, j], 1
+        arr[i + 1], arr[h] = arr[h], arr[i + 1]
+        yield arr, [i+1, h], 1
+        p = i + 1
+
+        if p - 1 > l:
+            top += 1
+            stack[top] = l
+            top += 1
+            stack[top] = p - 1
+        if p + 1 < h:
+            top += 1
+            stack[top] = p + 1
+            top += 1
+            stack[top] = h
+
 def gnome_sort(arr):
     index = 0
-    while index < len(arr):
-        if index == 0: index += 1
+    n = len(arr)
+    while index < n:
+        if index == 0:
+            index = index + 1
         yield arr, [index, index-1], 0
         if arr[index] >= arr[index - 1]:
-            index += 1
+            index = index + 1
         else:
             arr[index], arr[index - 1] = arr[index - 1], arr[index]
             yield arr, [index, index-1], 1
-            index -= 1
+            index = index - 1
+
+def odd_even_sort(arr):
+    n = len(arr)
+    isSorted = 0
+    while isSorted == 0:
+        isSorted = 1
+        for i in range(1, n - 1, 2):
+            yield arr, [i, i+1], 0
+            if arr[i] > arr[i + 1]:
+                arr[i], arr[i + 1] = arr[i + 1], arr[i]
+                yield arr, [i, i+1], 1
+                isSorted = 0
+        for i in range(0, n - 1, 2):
+            yield arr, [i, i+1], 0
+            if arr[i] > arr[i + 1]:
+                arr[i], arr[i + 1] = arr[i + 1], arr[i]
+                yield arr, [i, i+1], 1
+                isSorted = 0
+
+def cycle_sort(arr):
+    writes = 0
+    for cycleStart in range(0, len(arr) - 1):
+        item = arr[cycleStart]
+        pos = cycleStart
+        for i in range(cycleStart + 1, len(arr)):
+            yield arr, [i, cycleStart], 0
+            if arr[i] < item:
+                pos += 1
+        if pos == cycleStart:
+            continue
+        while item == arr[pos]:
+            pos += 1
+        arr[pos], item = item, arr[pos]
+        yield arr, [pos, cycleStart], 1
+        writes += 1
+        while pos != cycleStart:
+            pos = cycleStart
+            for i in range(cycleStart + 1, len(arr)):
+                yield arr, [i], 0
+                if arr[i] < item:
+                    pos += 1
+            while item == arr[pos]:
+                pos += 1
+            arr[pos], item = item, arr[pos]
+            yield arr, [pos], 1
+            writes += 1
+
+def stooge_sort(arr):
+    # Recursion using generator stack logic for visualizer
+    def stooge(arr, l, h):
+        if l >= h: return
+        yield arr, [l, h], 0
+        if arr[l] > arr[h]:
+            arr[l], arr[h] = arr[h], arr[l]
+            yield arr, [l, h], 1
+        if h - l + 1 > 2:
+            t = (h - l + 1) // 3
+            yield from stooge(arr, l, h - t)
+            yield from stooge(arr, l + t, h)
+            yield from stooge(arr, l, h - t)
+    
+    yield from stooge(arr, 0, len(arr)-1)
+
+def pancake_sort(arr):
+    n = len(arr)
+    for curr_size in range(n, 1, -1):
+        mi = 0
+        for i in range(curr_size):
+            yield arr, [i, mi], 0
+            if arr[i] > arr[mi]:
+                mi = i
+        
+        # Flip to top
+        if mi != curr_size - 1:
+            # Flip 1
+            start = 0
+            end = mi
+            while start < end:
+                arr[start], arr[end] = arr[end], arr[start]
+                yield arr, [start, end], 1
+                start += 1
+                end -= 1
+            
+            # Flip 2
+            start = 0
+            end = curr_size - 1
+            while start < end:
+                arr[start], arr[end] = arr[end], arr[start]
+                yield arr, [start, end], 1
+                start += 1
+                end -= 1
+
+def bitonic_sort(arr):
+    # Simplified bitonic network logic generator
+    def compAndSwap(a, i, j, dire):
+        yield a, [i, j], 0
+        if (dire == 1 and a[i] > a[j]) or (dire == 0 and a[i] < a[j]):
+            a[i], a[j] = a[j], a[i]
+            yield a, [i, j], 1
+
+    def bitonicMerge(a, low, cnt, dire):
+        if cnt > 1:
+            k = cnt // 2
+            for i in range(low, low + k):
+                yield from compAndSwap(a, i, i + k, dire)
+            yield from bitonicMerge(a, low, k, dire)
+            yield from bitonicMerge(a, low + k, k, dire)
+
+    def bitonicSortRec(a, low, cnt, dire):
+        if cnt > 1:
+            k = cnt // 2
+            yield from bitonicSortRec(a, low, k, 1)
+            yield from bitonicSortRec(a, low + k, k, 0)
+            yield from bitonicMerge(a, low, cnt, dire)
+
+    # Note: Bitonic usually requires power of 2 size. It will run on others but might not sort perfectly.
+    yield from bitonicSortRec(arr, 0, len(arr), 1)
+
+def radix_sort_lsd(arr):
+    # LSD Radix Sort Visualization
+    max1 = max(arr)
+    exp = 1
+    n = len(arr)
+    while max1 / exp >= 1:
+        output = [0] * n
+        count = [0] * 10
+        for i in range(n):
+            yield arr, [i], 0
+            index = arr[i] // exp
+            count[index % 10] += 1
+        
+        for i in range(1, 10):
+            count[i] += count[i - 1]
+            
+        i = n - 1
+        while i >= 0:
+            yield arr, [i], 0
+            index = arr[i] // exp
+            output[count[index % 10] - 1] = arr[i]
+            count[index % 10] -= 1
+            i -= 1
+        
+        for i in range(n):
+            arr[i] = output[i]
+            yield arr, [i], 1 # Visualizing the copy back
+            
+        exp *= 10
 
 def bogo_sort(arr):
     def is_sorted(a):
@@ -261,7 +459,8 @@ def bogo_sort(arr):
             if a[i] > a[i+1]: return False
         return True
     while not is_sorted(arr):
-        x, y = random.randint(0, len(arr)-1), random.randint(0, len(arr)-1)
+        x = random.randint(0, len(arr)-1)
+        y = random.randint(0, len(arr)-1)
         arr[x], arr[y] = arr[y], arr[x]
         yield arr, [x, y], 1
 
@@ -270,7 +469,7 @@ class AlgoGame:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Algo Sort Master")
+        pygame.display.set_caption("Sort It Out")
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont('Consolas', 18)
         self.large_font = pygame.font.SysFont('Consolas', 28, bold=True)
@@ -285,15 +484,24 @@ class AlgoGame:
         self.slider_speed = Slider(450, SCREEN_HEIGHT - 60, 200, 1, 120, 60)
         self.input_size = InputBox(700, SCREEN_HEIGHT - 60, 100, "100")
 
-        # Algos
+        # Full Algo List
         self.algos = [
             ("Bubble Sort", bubble_sort),
-            ("Insertion Sort", insertion_sort),
             ("Selection Sort", selection_sort),
-            ("Quick Sort", quick_sort),
+            ("Insertion Sort", insertion_sort),
+            ("Merge Sort", bubble_sort), # Placeholder as per request
+            ("Gnome Sort", gnome_sort),
+            ("Quick Sort", quick_sort_iterative),
             ("Heap Sort", heap_sort),
             ("Cocktail Shaker", cocktail_shaker_sort),
-            ("Gnome Sort", gnome_sort),
+            ("Comb Sort", comb_sort),
+            ("Shell Sort", shell_sort),
+            ("Odd-Even Sort", odd_even_sort),
+            ("Cycle Sort", cycle_sort),
+            ("Pancake Sort", pancake_sort),
+            ("Bitonic Sort", bitonic_sort),
+            ("Stooge Sort", stooge_sort),
+            ("Radix Sort (LSD)", radix_sort_lsd),
             ("BOGO SORT (Chaos)", bogo_sort)
         ]
         self.algo_idx = 0
@@ -303,7 +511,7 @@ class AlgoGame:
         self.arr = []
         self.running = False
         self.finished = False
-        self.sweep_idx = -1 # New: Tracks the victory sweep
+        self.sweep_idx = -1
         self.generator = None
         self.ops_count = 0
         
@@ -442,7 +650,6 @@ class AlgoGame:
             pygame.display.flip()
             
             # Tick Clock
-            # We use the slider speed for BOTH sorting and the victory sweep
             if self.running or self.sweep_idx != -1:
                 self.clock.tick(self.slider_speed.val)
             else:
