@@ -6,27 +6,42 @@
 
 Instead of just watching bars move, you *hear* the logic. The application features a custom-built sound engine that synthesizes 8-bit square waves in real-time—higher values produce higher pitches, creating a "chiptune" melody as the data organizes itself.
 
-![Project Demo](demo.gif)
-*(Note: Add a gif of your project here to make the repo pop!)*
+![Project Demo](assets/demo.gif)
 
 ## 🌟 Key Features
 
 * **🕹️ Game-Style UI:** A custom control dashboard built from scratch (no external UI libraries) featuring sliders, input fields, and interactive buttons.
 * **🎹 Real-Time Audio Synthesis:** Uses `numpy` and `pygame.sndarray` to generate audio on the fly. No pre-recorded MP3s—this is pure math converted to sound.
-* **🏆 The Victory Sweep:** Upon completion, the visualizer performs a satisfying "green sweep" accompanied by an ascending musical scale.
+* **🏆 The Victory Sweep:** Upon completion, the visualizer performs a satisfying "green sweep" animation accompanied by an ascending musical scale.
 * **🐢 to 🐇 Speed Control:** Dynamic speed adjustment allowing for frame-by-frame analysis or 120 FPS chaos.
 * **🔒 Bogo Safety Protocol:** Includes a special override for "Bogo Sort" that locks the array size to 7 elements, preventing infinite loops and CPU meltdown.
 
 ## 📦 Algorithms Included
 
+The "cartridge" includes **17 different sorting algorithms**, ranging from standard textbook examples to obscure and esoteric methods.
+
+### The Classics
 1.  **Bubble Sort:** The classic sinking sort.
-2.  **Insertion Sort:** Building the sorted list one item at a time.
-3.  **Selection Sort:** Finding the minimum and swapping.
-4.  **Quick Sort:** Divide and conquer.
-5.  **Heap Sort:** Using a binary heap structure.
-6.  **Cocktail Shaker Sort:** Bubbling in both directions.
-7.  **Gnome Sort:** The "garden gnome" approach to sorting.
-8.  **Bogo Sort:** The "Honorable Mention" (Random shuffling until sorted).
+2.  **Selection Sort:** Finding the minimum and swapping.
+3.  **Insertion Sort:** Building the sorted list one item at a time.
+4.  **Merge Sort:** A divide-and-conquer algorithm that recursively splits and merges arrays.
+5.  **Quick Sort:** The recursive divide-and-conquer standard.
+6.  **Heap Sort:** Utilization of a binary heap data structure.
+
+### The Variants
+7.  **Cocktail Shaker Sort:** A bi-directional Bubble Sort.
+8.  **Comb Sort:** Bubble sort with a larger gap that shrinks (improves efficiency).
+9.  **Shell Sort:** A generalized version of insertion sort using gap sequences.
+10. **Odd-Even Sort:** A parallel variant of bubble sort.
+11. **Gnome Sort:** The "Garden Gnome" approach—moving items back to their correct place.
+
+### The Esoteric & Rare
+12. **Cycle Sort:** A sorting algorithm optimal for minimizing memory writes.
+13. **Pancake Sort:** Sorting the array by only flipping sub-arrays (like a stack of pancakes).
+14. **Bitonic Sort:** A parallel algorithm typically used in sorting networks.
+15. **Stooge Sort:** A recursive algorithm known for being incredibly slow (O(n^2.7)).
+16. **Radix Sort (LSD):** A non-comparative integer sorting algorithm.
+17. **BOGO SORT:** The "Honorable Mention." It shuffles the array randomly until it is sorted. (Limited to 7 items).
 
 ## 🛠️ Installation
 
@@ -92,7 +107,7 @@ The interface is divided into two sections: the **Visualizer Arena** (top) and t
 
 ## 🤝 Contributing
 
-Got a favorite sorting algorithm I missed? (Maybe *Radix Sort* or *Shell Sort*?)
+Got a favorite sorting algorithm I missed?
 1.  Fork the repo.
 2.  Create a generator function for your sort.
 3.  Add it to the `self.algos` list in `main.py`.

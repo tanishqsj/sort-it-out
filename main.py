@@ -4,11 +4,11 @@ import numpy as np
 import sys
 import math
 
-# --- CONFIGURATION ---
-SCREEN_WIDTH = 1200
-SCREEN_HEIGHT = 800
+# --- CONFIGURATION (DEFAULTS) ---
+# These are just the starting dimensions. The window can now change.
+DEFAULT_WIDTH = 1200
+DEFAULT_HEIGHT = 800
 UI_HEIGHT = 150
-PLAY_AREA_HEIGHT = SCREEN_HEIGHT - UI_HEIGHT
 
 # Colors (Cyberpunk / Retro Game Palette)
 C_BG = (10, 10, 18)
@@ -16,7 +16,7 @@ C_UI_BG = (30, 30, 40)
 C_BAR_DEFAULT = (0, 180, 255)
 C_BAR_ACTIVE = (255, 0, 80)
 C_BAR_SWAP = (50, 255, 50)
-C_BAR_DONE = (0, 255, 0)  # Bright Green for the sweep
+C_BAR_DONE = (0, 255, 0)
 C_TEXT = (200, 200, 200)
 C_ACCENT = (255, 200, 0)
 C_UI_BORDER = (80, 80, 100)
@@ -39,7 +39,6 @@ class SoundEngine:
         max_freq = 880.0
         n_samples = int(SAMPLE_RATE * DURATION)
         t = np.linspace(0, DURATION, n_samples, False)
-        # Decay envelope for "plucked" sound
         envelope = np.linspace(1.0, 0.0, n_samples)
         
         for i in range(1, n + 1):
@@ -63,6 +62,9 @@ class Button:
         self.callback = callback
         self.hover = False
 
+    def update_pos(self, x, y):
+        self.rect.topleft = (x, y)
+
     def draw(self, screen, font):
         color = C_ACCENT if self.hover else C_UI_BORDER
         pygame.draw.rect(screen, color, self.rect, 2)
@@ -84,6 +86,9 @@ class Slider:
         self.max_val = max_val
         self.val = initial
         self.dragging = False
+
+    def update_pos(self, x, y):
+        self.rect.topleft = (x, y)
 
     def draw(self, screen, font):
         label = font.render(f"Speed: {int(self.val)}", True, C_TEXT)
@@ -113,6 +118,9 @@ class InputBox:
         self.text = text
         self.active = False
 
+    def update_pos(self, x, y):
+        self.rect.topleft = (x, y)
+
     def handle_event(self, event, on_submit):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
@@ -139,7 +147,6 @@ class InputBox:
         screen.blit(txt_surface, (self.rect.x + 5, self.rect.y + 5))
 
 # --- SORTING ALGORITHMS ---
-
 def bubble_sort(arr):
     n = len(arr)
     for i in range(n):
@@ -171,6 +178,44 @@ def insertion_sort(arr):
             j -= 1
         arr[j + 1] = key
         yield arr, [j+1], 1
+
+def merge_sort(arr):
+    def merge(arr, l, m, r):
+        n1 = m - l + 1
+        n2 = r - m
+        L = arr[l:m+1]
+        R = arr[m+1:r+1]
+        i = 0; j = 0; k = l
+        while i < n1 and j < n2:
+            yield arr, [k, l+i, m+1+j], 0
+            if L[i] <= R[j]:
+                arr[k] = L[i]
+                yield arr, [k], 1
+                i += 1
+            else:
+                arr[k] = R[j]
+                yield arr, [k], 1
+                j += 1
+            k += 1
+        while i < n1:
+            arr[k] = L[i]
+            yield arr, [k], 1
+            i += 1
+            k += 1
+        while j < n2:
+            arr[k] = R[j]
+            yield arr, [k], 1
+            j += 1
+            k += 1
+
+    def merge_sort_recursive(arr, l, r):
+        if l < r:
+            m = (l + r) // 2
+            yield from merge_sort_recursive(arr, l, m)
+            yield from merge_sort_recursive(arr, m+1, r)
+            yield from merge(arr, l, m, r)
+
+    yield from merge_sort_recursive(arr, 0, len(arr)-1)
 
 def cocktail_shaker_sort(arr):
     n = len(arr)
@@ -253,7 +298,6 @@ def heap_sort(arr):
         yield from heapify(arr, i, 0)
 
 def quick_sort_iterative(arr):
-    # Iterative version to work easily as generator
     size = len(arr)
     stack = [0] * size
     top = -1
@@ -267,8 +311,6 @@ def quick_sort_iterative(arr):
         top -= 1
         l = stack[top]
         top -= 1
-
-        # Partition
         i = (l - 1)
         x = arr[h]
         for j in range(l, h):
@@ -280,31 +322,25 @@ def quick_sort_iterative(arr):
         arr[i + 1], arr[h] = arr[h], arr[i + 1]
         yield arr, [i+1, h], 1
         p = i + 1
-
         if p - 1 > l:
-            top += 1
-            stack[top] = l
-            top += 1
-            stack[top] = p - 1
+            top += 1; stack[top] = l
+            top += 1; stack[top] = p - 1
         if p + 1 < h:
-            top += 1
-            stack[top] = p + 1
-            top += 1
-            stack[top] = h
+            top += 1; stack[top] = p + 1
+            top += 1; stack[top] = h
 
 def gnome_sort(arr):
     index = 0
     n = len(arr)
     while index < n:
-        if index == 0:
-            index = index + 1
+        if index == 0: index += 1
         yield arr, [index, index-1], 0
         if arr[index] >= arr[index - 1]:
-            index = index + 1
+            index += 1
         else:
             arr[index], arr[index - 1] = arr[index - 1], arr[index]
             yield arr, [index, index-1], 1
-            index = index - 1
+            index -= 1
 
 def odd_even_sort(arr):
     n = len(arr)
@@ -331,12 +367,9 @@ def cycle_sort(arr):
         pos = cycleStart
         for i in range(cycleStart + 1, len(arr)):
             yield arr, [i, cycleStart], 0
-            if arr[i] < item:
-                pos += 1
-        if pos == cycleStart:
-            continue
-        while item == arr[pos]:
-            pos += 1
+            if arr[i] < item: pos += 1
+        if pos == cycleStart: continue
+        while item == arr[pos]: pos += 1
         arr[pos], item = item, arr[pos]
         yield arr, [pos, cycleStart], 1
         writes += 1
@@ -344,16 +377,13 @@ def cycle_sort(arr):
             pos = cycleStart
             for i in range(cycleStart + 1, len(arr)):
                 yield arr, [i], 0
-                if arr[i] < item:
-                    pos += 1
-            while item == arr[pos]:
-                pos += 1
+                if arr[i] < item: pos += 1
+            while item == arr[pos]: pos += 1
             arr[pos], item = item, arr[pos]
             yield arr, [pos], 1
             writes += 1
 
 def stooge_sort(arr):
-    # Recursion using generator stack logic for visualizer
     def stooge(arr, l, h):
         if l >= h: return
         yield arr, [l, h], 0
@@ -365,7 +395,6 @@ def stooge_sort(arr):
             yield from stooge(arr, l, h - t)
             yield from stooge(arr, l + t, h)
             yield from stooge(arr, l, h - t)
-    
     yield from stooge(arr, 0, len(arr)-1)
 
 def pancake_sort(arr):
@@ -374,37 +403,25 @@ def pancake_sort(arr):
         mi = 0
         for i in range(curr_size):
             yield arr, [i, mi], 0
-            if arr[i] > arr[mi]:
-                mi = i
-        
-        # Flip to top
+            if arr[i] > arr[mi]: mi = i
         if mi != curr_size - 1:
-            # Flip 1
-            start = 0
-            end = mi
+            start = 0; end = mi
             while start < end:
                 arr[start], arr[end] = arr[end], arr[start]
                 yield arr, [start, end], 1
-                start += 1
-                end -= 1
-            
-            # Flip 2
-            start = 0
-            end = curr_size - 1
+                start += 1; end -= 1
+            start = 0; end = curr_size - 1
             while start < end:
                 arr[start], arr[end] = arr[end], arr[start]
                 yield arr, [start, end], 1
-                start += 1
-                end -= 1
+                start += 1; end -= 1
 
 def bitonic_sort(arr):
-    # Simplified bitonic network logic generator
     def compAndSwap(a, i, j, dire):
         yield a, [i, j], 0
         if (dire == 1 and a[i] > a[j]) or (dire == 0 and a[i] < a[j]):
             a[i], a[j] = a[j], a[i]
             yield a, [i, j], 1
-
     def bitonicMerge(a, low, cnt, dire):
         if cnt > 1:
             k = cnt // 2
@@ -412,19 +429,15 @@ def bitonic_sort(arr):
                 yield from compAndSwap(a, i, i + k, dire)
             yield from bitonicMerge(a, low, k, dire)
             yield from bitonicMerge(a, low + k, k, dire)
-
     def bitonicSortRec(a, low, cnt, dire):
         if cnt > 1:
             k = cnt // 2
             yield from bitonicSortRec(a, low, k, 1)
             yield from bitonicSortRec(a, low + k, k, 0)
             yield from bitonicMerge(a, low, cnt, dire)
-
-    # Note: Bitonic usually requires power of 2 size. It will run on others but might not sort perfectly.
     yield from bitonicSortRec(arr, 0, len(arr), 1)
 
 def radix_sort_lsd(arr):
-    # LSD Radix Sort Visualization
     max1 = max(arr)
     exp = 1
     n = len(arr)
@@ -435,10 +448,7 @@ def radix_sort_lsd(arr):
             yield arr, [i], 0
             index = arr[i] // exp
             count[index % 10] += 1
-        
-        for i in range(1, 10):
-            count[i] += count[i - 1]
-            
+        for i in range(1, 10): count[i] += count[i - 1]
         i = n - 1
         while i >= 0:
             yield arr, [i], 0
@@ -446,11 +456,9 @@ def radix_sort_lsd(arr):
             output[count[index % 10] - 1] = arr[i]
             count[index % 10] -= 1
             i -= 1
-        
         for i in range(n):
             arr[i] = output[i]
-            yield arr, [i], 1 # Visualizing the copy back
-            
+            yield arr, [i], 1
         exp *= 10
 
 def bogo_sort(arr):
@@ -468,7 +476,8 @@ def bogo_sort(arr):
 class AlgoGame:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        # ENABLE RESIZABLE WINDOW
+        self.screen = pygame.display.set_mode((DEFAULT_WIDTH, DEFAULT_HEIGHT), pygame.RESIZABLE)
         pygame.display.set_caption("Sort It Out")
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont('Consolas', 18)
@@ -476,20 +485,23 @@ class AlgoGame:
         
         self.sound_engine = SoundEngine()
         
-        # UI Components
-        self.btn_start = Button(SCREEN_WIDTH - 250, SCREEN_HEIGHT - 80, 100, 40, "START", self.start_sort)
-        self.btn_reset = Button(SCREEN_WIDTH - 130, SCREEN_HEIGHT - 80, 100, 40, "RESET", self.reset_array)
-        self.btn_prev = Button(50, SCREEN_HEIGHT - 80, 40, 40, "<", self.prev_algo)
-        self.btn_next = Button(350, SCREEN_HEIGHT - 80, 40, 40, ">", self.next_algo)
-        self.slider_speed = Slider(450, SCREEN_HEIGHT - 60, 200, 1, 120, 60)
-        self.input_size = InputBox(700, SCREEN_HEIGHT - 60, 100, "100")
+        # Initialize UI Components (Positions will be set by recalc_ui)
+        self.btn_start = Button(0, 0, 100, 40, "START", self.start_sort)
+        self.btn_reset = Button(0, 0, 100, 40, "RESET", self.reset_array)
+        self.btn_prev = Button(0, 0, 40, 40, "<", self.prev_algo)
+        self.btn_next = Button(0, 0, 40, 40, ">", self.next_algo)
+        self.slider_speed = Slider(0, 0, 200, 1, 600, 60)
+        self.input_size = InputBox(0, 0, 100, "100")
+
+        # Layout the UI for the first time
+        self.recalc_ui()
 
         # Full Algo List
         self.algos = [
             ("Bubble Sort", bubble_sort),
             ("Selection Sort", selection_sort),
             ("Insertion Sort", insertion_sort),
-            ("Merge Sort", bubble_sort), # Placeholder as per request
+            ("Merge Sort", merge_sort), 
             ("Gnome Sort", gnome_sort),
             ("Quick Sort", quick_sort_iterative),
             ("Heap Sort", heap_sort),
@@ -516,6 +528,22 @@ class AlgoGame:
         self.ops_count = 0
         
         self.reset_array()
+
+    def recalc_ui(self):
+        """Recalculate UI positions based on current window size"""
+        w, h = self.screen.get_size()
+        
+        # Bottom Right Buttons
+        self.btn_start.update_pos(w - 250, h - 80)
+        self.btn_reset.update_pos(w - 130, h - 80)
+        
+        # Bottom Left Buttons
+        self.btn_prev.update_pos(50, h - 80)
+        self.btn_next.update_pos(350, h - 80)
+        
+        # Center-ish Controls
+        self.slider_speed.update_pos(450, h - 60)
+        self.input_size.update_pos(700, h - 60)
 
     def reset_array(self):
         self.running = False
@@ -567,6 +595,22 @@ class AlgoGame:
                 if event.type == pygame.QUIT:
                     pygame.quit(); sys.exit()
                 
+                # --- NEW: HANDLE RESIZING ---
+                if event.type == pygame.VIDEORESIZE:
+                    # Update screen surface (handled auto by some backends, explicit here)
+                    # Note: We rely on self.screen.get_size() in the drawing loop
+                    self.recalc_ui()
+
+                # --- NEW: HANDLE F11 FULLSCREEN TOGGLE ---
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_F11:
+                        is_fullscreen = self.screen.get_flags() & pygame.FULLSCREEN
+                        if is_fullscreen:
+                            pygame.display.set_mode((DEFAULT_WIDTH, DEFAULT_HEIGHT), pygame.RESIZABLE)
+                        else:
+                            pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+                        self.recalc_ui()
+                
                 self.btn_start.handle_event(event)
                 self.btn_reset.handle_event(event)
                 self.btn_prev.handle_event(event)
@@ -587,36 +631,38 @@ class AlgoGame:
                             self.sound_engine.play(self.arr[idx])
                 except StopIteration:
                     self.running = False
-                    self.sweep_idx = 0 # Start the victory sweep!
+                    self.sweep_idx = 0 
 
-            # 2. SWEEP LOGIC (Victory Lap)
+            # 2. SWEEP LOGIC
             if not self.running and self.sweep_idx != -1:
                 if self.sweep_idx < len(self.arr):
                     self.sound_engine.play(self.arr[self.sweep_idx])
                     self.sweep_idx += 1
                 else:
                     self.finished = True
-                    self.sweep_idx = -1 # Stop sweeping, fully done
+                    self.sweep_idx = -1 
 
-            # --- DRAWING ---
+            # --- DRAWING (DYNAMIC SIZE) ---
             self.screen.fill(C_BG)
             
-            bar_w = SCREEN_WIDTH / len(self.arr)
-            max_h = PLAY_AREA_HEIGHT - 50
+            # Get current dynamic dimensions
+            win_w, win_h = self.screen.get_size()
+            play_h = win_h - UI_HEIGHT
+
+            bar_w = win_w / len(self.arr)
+            max_h = play_h - 50
             max_val = max(self.arr) if self.arr else 1
             
             for i, val in enumerate(self.arr):
                 h = (val / max_val) * max_h
                 x = i * bar_w
-                y = PLAY_AREA_HEIGHT - h
+                y = play_h - h
                 
                 # Color Logic
                 color = C_BAR_DEFAULT
-                
                 if self.finished:
-                    color = C_BAR_DONE # All Green
+                    color = C_BAR_DONE 
                 elif self.sweep_idx != -1:
-                    # In sweep mode: Green if passed, Blue if waiting
                     if i < self.sweep_idx:
                         color = C_BAR_DONE
                     else:
@@ -627,8 +673,8 @@ class AlgoGame:
                 pygame.draw.rect(self.screen, color, (x, y, bar_w + 1, h))
             
             # UI Background
-            pygame.draw.rect(self.screen, C_UI_BG, (0, PLAY_AREA_HEIGHT, SCREEN_WIDTH, UI_HEIGHT))
-            pygame.draw.line(self.screen, C_ACCENT, (0, PLAY_AREA_HEIGHT), (SCREEN_WIDTH, PLAY_AREA_HEIGHT), 2)
+            pygame.draw.rect(self.screen, C_UI_BG, (0, play_h, win_w, UI_HEIGHT))
+            pygame.draw.line(self.screen, C_ACCENT, (0, play_h), (win_w, play_h), 2)
 
             # Draw Buttons
             self.btn_start.draw(self.screen, self.font)
@@ -641,11 +687,11 @@ class AlgoGame:
             # Draw Text
             algo_name = self.algos[self.algo_idx][0]
             name_surf = self.large_font.render(algo_name, True, C_ACCENT)
-            self.screen.blit(name_surf, (110, SCREEN_HEIGHT - 90))
+            self.screen.blit(name_surf, (110, win_h - 90))
             
             stats = f"Ops: {self.ops_count} | Elements: {len(self.arr)}"
             stat_surf = self.font.render(stats, True, C_TEXT)
-            self.screen.blit(stat_surf, (110, SCREEN_HEIGHT - 50))
+            self.screen.blit(stat_surf, (110, win_h - 50))
 
             pygame.display.flip()
             
