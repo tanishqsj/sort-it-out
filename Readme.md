@@ -13,7 +13,7 @@ Instead of just watching bars move, you *hear* the logic. The application featur
 * **🕹️ Game-Style UI:** A custom control dashboard built from scratch (no external UI libraries) featuring sliders, input fields, and interactive buttons.
 * **🎹 Real-Time Audio Synthesis:** Uses `numpy` and `pygame.sndarray` to generate audio on the fly. No pre-recorded MP3s—this is pure math converted to sound.
 * **🏆 The Victory Sweep:** Upon completion, the visualizer performs a satisfying "green sweep" animation accompanied by an ascending musical scale.
-* **🐢 to 🐇 Speed Control:** Dynamic speed adjustment allowing for frame-by-frame analysis or 120 FPS chaos.
+* **🐢 to 🐇 Speed Control:** Dynamic speed adjustment allowing for frame-by-frame analysis or 600 FPS chaos.
 * **🔒 Bogo Safety Protocol:** Includes a special override for "Bogo Sort" that locks the array size to 7 elements, preventing infinite loops and CPU meltdown.
 
 ## 📦 Algorithms Included
